@@ -1,6 +1,7 @@
 import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 import torch
 from io import BytesIO
@@ -8,6 +9,14 @@ import time
 
 # Initialize FastAPI
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3001"],  # Allow only this origin
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 # Configure logging
 logging.basicConfig(
