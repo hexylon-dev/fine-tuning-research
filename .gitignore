@@ -1,0 +1,35 @@
+# Node.js dependencies
+node_modules/
+RAG/node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+RAG/.env
+
+# Build and cache
+dist/
+RAG/dist/
+.cache/
+RAG/.cache/
+
+# Temporary files
+tmp/
+RAG/tmp/
+
+# Uploads folder
+RAG/uploads/
+
+# Editor and OS-specific files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
