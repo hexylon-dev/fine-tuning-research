@@ -6,11 +6,18 @@ const defaultEF = new DefaultEmbeddingFunction();
 
 router.post("/", async (req, res) => {
   try {
-    let { query, limit = 10 } = req.body;
-
-    let collection = await client.getCollection({
-      name: "lom",
-    });
+    let { query, limit = 10, domain } = req.body;
+    let collection;
+    try {
+      collection = await client.getCollection({
+        name: domain,
+      });
+    } catch (error) {
+      console.error('Failed to get collection:', error);
+      return res.status(404).json({ 
+        error: `Collection '${domain}' not found` 
+      });
+    }
 
     const queryEmbedding = await defaultEF.generate(query);
 
