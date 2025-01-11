@@ -10,18 +10,6 @@ const { DefaultEmbeddingFunction } = require("chromadb");
 const client = require("./connection");
 const defaultEF = new DefaultEmbeddingFunction();
 
-let collection;
-// Initialize collection
-(async () => {
-  try {
-    collection = await client.getCollection({
-      name: "my_collection"
-    });
-  } catch (err) {
-    console.error("Error initializing collection:", err);
-  }
-})();
-
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -46,7 +34,7 @@ const upload = multer({
 
 router.post("/add", upload.single("file"), async (req, res) => {
   let collection = await client.getOrCreateCollection({
-    name: "my_collection",
+    name: req.body.collection ?? 'lom',
   });
 
   try {
@@ -66,19 +54,28 @@ router.post("/add", upload.single("file"), async (req, res) => {
 
     // const chunks = splitText(chunks);
     const embeddings = await Promise.all(
-      chunks.map(async (text) => defaultEF.generate([text]))
+      chunks.map(async (text) => {
+        if (text.length > 20) {
+          return defaultEF.generate(text)
+        }
+        else {
+          return new Promise(res => res(false));
+        }
+      })
     );
 
-    const ids = [];
-    for (let i=0; i<chunks.length; i++) ids.push(crypto.randomUUID())
-
-      console.log(embeddings)
-
-    await collection.add({
-      ids,
-      documents: chunks,
-      embeddings: embeddings,
-    });
+    await Promise.all(
+      embeddings.map((emb, index) => {
+        if (!emb) {
+          return new Promise(res => res(false));
+        }
+        collection.add({
+          ids: crypto.randomUUID(),
+          documents: chunks[index],
+          embeddings: emb,
+        })
+      })
+    );
 
     // Clean up the uploaded file
     if (req.file) {
@@ -108,33 +105,36 @@ router.post("/add", upload.single("file"), async (req, res) => {
 
 router.delete("/deleteAll", async (req, res) => {
   try {
+    let collection = await client.getOrCreateCollection({
+      name: "lom",
+    });
+    
     if (!collection) {
       return res.status(500).json({
         error: "Collection not initialized",
-        status: "error"
+        status: "error",
       });
-    } 
+    }
 
     await client.deleteCollection({
-      name: "my_collection"
+      name: "lom",
     });
-    
+
     collection = await client.createCollection({
-      name: "my_collection"
+      name: "lom",
     });
 
     res.json({
       message: "Successfully deleted all documents and recreated collection",
-      status: "success"
+      status: "success",
     });
-
   } catch (err) {
     console.error("Error deleting documents:", err);
-    
+
     res.status(500).json({
       error: "Failed to delete documents",
       details: err.message,
-      status: "error"
+      status: "error",
     });
   }
 });
@@ -142,19 +142,23 @@ router.delete("/deleteAll", async (req, res) => {
 // Delete specific documents by IDs
 router.delete("/delete", async (req, res) => {
   try {
+    let collection = await client.getOrCreateCollection({
+      name: "my_collection",
+    });
+    
     const { ids } = req.body;
 
     if (!collection) {
       return res.status(500).json({
         error: "Collection not initialized",
-        status: "error"
+        status: "error",
       });
     }
 
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({
         error: "Invalid input: ids must be a non-empty array",
-        status: "error"
+        status: "error",
       });
     }
 
@@ -165,7 +169,7 @@ router.delete("/delete", async (req, res) => {
     for (let i = 0; i < ids.length; i += BATCH_SIZE) {
       const batch = ids.slice(i, i + BATCH_SIZE);
       await collection.delete({
-        ids: batch
+        ids: batch,
       });
       deletedCount += batch.length;
     }
@@ -173,16 +177,15 @@ router.delete("/delete", async (req, res) => {
     res.json({
       message: "Successfully deleted specified documents",
       deletedCount,
-      status: "success"
+      status: "success",
     });
-
   } catch (err) {
     console.error("Error deleting documents:", err);
-    
+
     res.status(500).json({
       error: "Failed to delete documents",
       details: err.message,
-      status: "error"
+      status: "error",
     });
   }
 });
