@@ -2,15 +2,38 @@ const express = require("express");
 const client = require("./connection");
 const router = express.Router();
 const { DefaultEmbeddingFunction } = require("chromadb");
+const {getDomain} = require("./hosts")
 const defaultEF = new DefaultEmbeddingFunction();
 
 router.post("/", async (req, res) => {
   try {
-    let { query, limit = 10 } = req.body;
-
-    let collection = await client.getCollection({
-      name: "lom",
-    });
+    let { query, limit = 10, domain } = req.body;
+    if(domain === undefined){
+      try{
+        domain = getDomain(req.hostname)
+        if(domain === false){
+          return res.status(404).json({ 
+            error: `Collection for ${req.hostname} not found` 
+          });
+        }
+      }catch(err){
+        console.error('Failed to get collection:', err);
+        return res.status(404).json({ 
+          error: `Collection for ${req.hostname} not found` 
+        });
+      }
+    }
+    let collection;
+    try {
+      collection = await client.getCollection({
+        name: domain,
+      });
+    } catch (error) {
+      console.error('Failed to get collection:', error);
+      return res.status(404).json({ 
+        error: `Collection '${domain}' not found` 
+      });
+    }
 
     const queryEmbedding = await defaultEF.generate(query);
 
